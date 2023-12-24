@@ -5,6 +5,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2016 Hubert Denkmair
+Copyright (c) 2022 Ryan Edwards (changes for STM32G4 and CAN-FD)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

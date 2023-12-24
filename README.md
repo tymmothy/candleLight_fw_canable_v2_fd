@@ -1,23 +1,21 @@
-# candleLight_gsusb
-[![Build](https://github.com/candle-usb/candleLight_fw/actions/workflows/ci.yml/badge.svg)](https://github.com/candle-usb/candleLight_fw/actions)
+# candleLight_gsusb, tweaked for Canable V2 (STM32F431 based) CAN-FD use 
 
-This is firmware for certain STM32F042x/STM32F072xB-based USB-CAN adapters, notably:
-- candleLight: https://github.com/HubertD/candleLight (STM32F072xB)
-- candleLight: https://www.linux-automation.com/en/products/candlelight.html (STM32F072xB)
-- cantact: https://www.linklayer.com/tools (STM32F042C6)
-- canable (cantact clone): http://canable.io/ (STM32F042C6)
-- USB2CAN: https://github.com/roboterclubaachen/usb2can (STM32F042x6)
-- CANAlyze: https://kkuchera.github.io/canalyze/ (STM32F042C6)
-- VulCAN Gen1: https://shop.copperforge.cc/products/ac41 (STM32F042x6)
-- Entreé: https://github.com/tuna-f1sh/entree (STM32F042x6)
-- CANable-MKS: https://github.com/makerbase-mks/CANable-MKS (STM32F072xB)
-- ConvertDevice-xCAN: https://github.com/ConvertDevice/xCAN (STM32F072xB)
-- ConvertDevice-xCANFD: https://github.com/ConvertDevice/xCANFD (STM32G0B1CBT6)
-- DSD TECH SH-C30A: https://www.deshide.com/product-details.html?pid=384242&_t=1671089557 (STM32F072xB)
-- FYSETC UCAN: https://www.fysetc.com/products/fysetc-ucan-board-based-on-stm32f072-usb-to-can-adapter-support-with-canable-candlelight-klipper-firmware (STM32F072xB)
+***Note: This is not likely to be maintained***
 
-Of important note is that the common STM32F103 will NOT work with this firmware because its hardware cannot use both USB and CAN simultaneously.
-Beware also the smaller packages in the F042 series which map a USB and CAN_TX signal on the same pin and are therefore unusable !
+Please feel free to fork and build on this.
+
+Many of the changes here are based on:
+
+https://github.com/ddleed/CANNEDPI_SW_GSUSB_CANFD by Ryan Edwards
+https://github.com/normaldotcom/candleLight_fw (multitarget branch) by Ethan Zonca
+
+I'm sure there are a good number of bugs that I've added. So far I've only really done basic bidirectional tests with CAN FD running at 5mbps.
+
+This is firmware for certain STM32FG431-based USB-CAN adapters, notably:
+- canable v2: http://canable.io/ (STM32G431x8)
+- CANable-MKS V2.0: https://github.com/makerbase-mks/CANable-MKS (STM32G431x8)
+
+This fork will currently only work on STM32G431 based adapters; it's probably easy to get it working on other G4's, and possibly H7's, but it requires the FDCAN peripheral.
 
 This implements the interface of the mainline linux gs_usb kernel module and
 works out-of-the-box with linux distros packaging this module, e.g. Ubuntu.
@@ -52,16 +50,13 @@ make
 
 # OR, each board target is a cmake option and can be disabled before running 'make';
 # OR, compile a single target , e.g.
-make cantact_fw
+make canable2_fw
 
 #
 # to list possible targets :
 make help
 
 ```
-
-## Download Binaries
-Prebuilt binaries can be downloaded by clicking [![CI](https://github.com/candle-usb/candleLight_fw/actions/workflows/ci.yml/badge.svg)](https://github.com/candle-usb/candleLight_fw/actions). On the workflow overview page, select the latest workflow that ran on master branch. The firmware artifacts can downloaded by clicking them at the bottom of the page.
 
 ## Flashing
 
