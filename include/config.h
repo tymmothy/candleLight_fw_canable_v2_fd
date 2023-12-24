@@ -95,6 +95,28 @@ THE SOFTWARE.
 	#define LEDTX_Mode		  GPIO_MODE_OUTPUT_OD
 	#define LEDTX_Active_High 0
 
+#elif defined BOARD_canable2
+	#define USBD_PRODUCT_STRING_FS			(uint8_t*) "canable2 gs_usb"
+	#define USBD_MANUFACTURER_STRING		(uint8_t*) "canable.io"
+	#define DFU_INTERFACE_STRING_FS			(uint8_t*) "canable firmware upgrade interface"
+
+	// SILENT pin not connected
+	#define LEDRX_GPIO_Port GPIOB
+	#define LEDRX_Pin GPIO_PIN_11	/* green */
+	#define LEDRX_Mode GPIO_MODE_OUTPUT_PP
+	#define LEDRX_Active_High 1
+
+	#define TIM2_CLOCK_SPEED		 170000000
+
+	#define CAN_INTERFACE            FDCAN1
+    #define CAN_CLOCK_SPEED          170000000
+    #define NUM_CAN_CHANNEL          1
+
+	#define LEDTX_GPIO_Port GPIOA
+	#define LEDTX_Pin GPIO_PIN_15	/* blue */
+	#define LEDTX_Mode GPIO_MODE_OUTPUT_PP
+	#define LEDTX_Active_High 0
+
 #elif defined(BOARD_CONVERTDEVICE_xCAN)
 	#define USBD_PRODUCT_STRING_FS	 (uint8_t*) "ConvertDevice xCAN"
 	#define USBD_MANUFACTURER_STRING (uint8_t*) "ConvertDevice"

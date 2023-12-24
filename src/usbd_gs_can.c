@@ -217,14 +217,17 @@ static const struct gs_device_bt_const USBD_GS_CAN_btconst = {
 	.feature =
 		GS_CAN_FEATURE_LISTEN_ONLY |
 		GS_CAN_FEATURE_LOOP_BACK |
-		GS_CAN_FEATURE_HW_TIMESTAMP |
+		GS_CAN_FEATURE_ONE_SHOT |
 		GS_CAN_FEATURE_IDENTIFY |
+		GS_CAN_FEATURE_FD |
+		GS_CAN_FEATURE_BT_CONST_EXT |
+		GS_CAN_FEATURE_USER_ID |
 		GS_CAN_FEATURE_PAD_PKTS_TO_MAX_PKT_SIZE
 #ifdef TERM_Pin
 		| GS_CAN_FEATURE_TERMINATION
 #endif
 	,
-	.fclk_can = CAN_CLOCK_SPEED,
+	.fclk_can = CAN_CLOCK_SPEED, // can timing base clock FIXME this isn't right
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -233,6 +236,40 @@ static const struct gs_device_bt_const USBD_GS_CAN_btconst = {
 	.brp_min = 1,
 	.brp_max = 1024,
 	.brp_inc = 1,
+};
+
+static struct gs_device_bt_const_extended USBD_GS_CAN_btconst_extended = {
+	.feature =
+		GS_CAN_FEATURE_LISTEN_ONLY |
+		GS_CAN_FEATURE_LOOP_BACK |
+		GS_CAN_FEATURE_ONE_SHOT |
+		GS_CAN_FEATURE_IDENTIFY |
+		GS_CAN_FEATURE_FD |
+		GS_CAN_FEATURE_BT_CONST_EXT |
+		GS_CAN_FEATURE_USER_ID |
+		GS_CAN_FEATURE_PAD_PKTS_TO_MAX_PKT_SIZE
+#ifdef TERM_Pin
+		| GS_CAN_FEATURE_TERMINATION
+#endif
+	,
+	.fclk_can = CAN_CLOCK_SPEED, // can timing base clock
+	.tseg1_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 1,
+	.tseg2_max = 8,
+	.sjw_max = 4,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+
+	.dtseg1_min = 1,
+	.dtseg1_max = 16,
+	.dtseg2_min = 1,
+	.dtseg2_max = 8,
+	.dsjw_max = 4,
+	.dbrp_min = 1,
+	.dbrp_max = 1024,
+	.dbrp_inc = 1,
 };
 
 /* It's unclear from the documentation, but it appears that the USB library is
@@ -343,6 +380,7 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 			len = sizeof(struct gs_host_config);
 			break;
 		case GS_USB_BREQ_BITTIMING:
+		case GS_USB_BREQ_DATA_BITTIMING:
 			len = sizeof(struct gs_device_bittiming);
 			break;
 		case GS_USB_BREQ_MODE:
@@ -351,6 +389,10 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 		case GS_USB_BREQ_BT_CONST:
 			src = &USBD_GS_CAN_btconst;
 			len = sizeof(USBD_GS_CAN_btconst);
+			break;
+		case GS_USB_BREQ_BT_CONST_EXT:
+			src = &USBD_GS_CAN_btconst_extended;
+			len = sizeof(USBD_GS_CAN_btconst_extended);
 			break;
 		case GS_USB_BREQ_DEVICE_CONFIG:
 			src = &USBD_GS_CAN_dconf;
@@ -394,6 +436,7 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 	switch (req->bRequest) {
 		case GS_USB_BREQ_HOST_FORMAT:
 		case GS_USB_BREQ_BITTIMING:
+		case GS_USB_BREQ_DATA_BITTIMING:
 		case GS_USB_BREQ_MODE:
 		case GS_USB_BREQ_IDENTIFY:
 		case GS_USB_BREQ_SET_TERMINATION:
@@ -407,6 +450,7 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 
 		// Device -> Host
 		case GS_USB_BREQ_BT_CONST:
+		case GS_USB_BREQ_BT_CONST_EXT:
 		case GS_USB_BREQ_DEVICE_CONFIG:
 		case GS_USB_BREQ_TIMESTAMP:
 		case GS_USB_BREQ_GET_TERMINATION:
@@ -512,6 +556,16 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 							  timing->sjw);
 			break;
 		}
+		case GS_USB_BREQ_DATA_BITTIMING: {
+			struct gs_device_bittiming *timing;
+
+			timing = (struct gs_device_bittiming*)hcan->ep0_buf;
+			can_set_data_bittiming(channel, timing->brp,
+							       timing->prop_seg + timing->phase_seg1,
+							       timing->phase_seg2,
+							       timing->sjw);
+			break;
+		}
 		case GS_USB_BREQ_MODE: {
 			struct gs_device_mode *mode;
 
@@ -527,7 +581,8 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 				can_enable(channel,
 						   (mode->flags & GS_CAN_MODE_LOOP_BACK) != 0,
 						   (mode->flags & GS_CAN_MODE_LISTEN_ONLY) != 0,
-						   (mode->flags & GS_CAN_MODE_ONE_SHOT) != 0
+						   (mode->flags & GS_CAN_MODE_ONE_SHOT) != 0,
+						   (mode->flags & GS_CAN_MODE_FD) != 0
 				           // triple sampling not supported on bxCAN
 						   );
 
@@ -577,9 +632,10 @@ static uint8_t USBD_GS_CAN_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 // Note that the return value is completely ignored by the stack.
 static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
+	uint32_t const min_len = sizeof(struct gs_host_frame) - (sizeof(struct canfd_ts) - sizeof(struct classic_can));
 
 	uint32_t rxlen = USBD_LL_GetRxDataSize(pdev, epnum);
-	if (rxlen < (sizeof(struct gs_host_frame)-4)) {
+	if (rxlen < min_len) {
 		// Invalid frame length, just ignore it and receive into the same buffer
 		// again next time.
 		USBD_GS_CAN_PrepareReceive(pdev);
@@ -731,7 +787,13 @@ uint8_t USBD_GS_CAN_SendFrame(USBD_HandleTypeDef *pdev, struct gs_host_frame *fr
 	uint8_t buf[CAN_DATA_MAX_PACKET_SIZE],*send_addr;
 
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	size_t len = sizeof(struct gs_host_frame);
+	size_t len;
+
+	if (frame->flags & GS_CAN_FLAG_FD) {
+		len = sizeof(struct gs_host_frame);
+	} else {
+		len = sizeof(struct gs_host_frame) - (sizeof(struct canfd) - sizeof(struct classic_can));
+	}
 
 	if (!hcan->timestamps_enabled) {
 		len -= 4;

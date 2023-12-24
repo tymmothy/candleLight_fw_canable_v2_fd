@@ -48,7 +48,7 @@ THE SOFTWARE.
 #define GS_CAN_MODE_PAD_PKTS_TO_MAX_PKT_SIZE (1<<7)
 #define GS_CAN_MODE_FD						 (1<<8)    /* switch device to CAN-FD mode */
 /* #define GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX (1<<9) */
-/* #define GS_CAN_FEATURE_BT_CONST_EXT          (1<<10) */
+#define GS_CAN_FEATURE_BT_CONST_EXT          (1<<10)
 /* #define GS_CAN_FEATURE_TERMINATION           (1<<11) */
 #define GS_CAN_MODE_BERR_REPORTING (1<<12)
 /* GS_CAN_FEATURE_GET_STATE (1<<13) */
@@ -290,6 +290,24 @@ struct gs_device_termination_state {
 	u32 state;
 } __packed __aligned(4);
 
+struct classic_can {
+	u8 data[8];
+} __packed;
+
+struct classic_can_ts {
+	u8 data[8];
+	u32 timestamp_us;
+} __packed;
+
+struct canfd {
+	u8 data[64];
+} __packed;
+
+struct canfd_ts {
+	u8 data[64];
+	u32 timestamp_us;
+} __packed;
+
 struct gs_host_frame {
 	u32 echo_id;
 	u32 can_id;
@@ -299,10 +317,13 @@ struct gs_host_frame {
 	u8 flags;
 	u8 reserved;
 
-	u8 data[8];
-
-	u32 timestamp_us;
-
+	union {
+		struct classic_can classic_can;
+		struct classic_can_ts classic_can_ts;
+		struct canfd canfd;
+		struct canfd_ts canfd_ts;
+		uint8_t raw_data[sizeof(struct canfd_ts)];
+	};
 } __packed __aligned(4);
 
 struct gs_host_frame_canfd {
@@ -316,3 +337,10 @@ struct gs_host_frame_canfd {
 
 	u8 data[64];
 } __packed __aligned(4);
+
+/*
+union gs_host_frame {
+	struct gs_host_frame_classic classic;
+	struct gs_host_frame_canfd canfd;
+};
+*/

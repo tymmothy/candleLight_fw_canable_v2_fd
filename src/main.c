@@ -110,9 +110,14 @@ int main(void)
 
 			if (can_send(channel, frame)) {
 				// Echo sent frame back to host
-				frame->flags = 0x0;
+				frame->flags &= ~(GS_CAN_FLAG_FD);
 				frame->reserved = 0x0;
-				frame->timestamp_us = timer_get();
+
+				if (frame->flags & GS_CAN_FLAG_FD) {
+					frame->canfd_ts.timestamp_us = timer_get();
+				} else {
+					frame->classic_can_ts.timestamp_us = timer_get();
+				}
 
 				list_add_tail_locked(&frame_object->list, &hGS_CAN.list_to_host);
 
@@ -140,8 +145,11 @@ int main(void)
 				restore_irq(was_irq_enabled);
 
 				if (can_receive(channel, frame)) {
-
-					frame->timestamp_us = timer_get();
+					if (frame->flags & GS_CAN_FLAG_FD) {
+						frame->canfd_ts.timestamp_us = timer_get();
+					} else {
+						frame->classic_can_ts.timestamp_us = timer_get();
+					}
 					frame->echo_id = 0xFFFFFFFF; // not a echo frame
 					frame->channel = 0;
 					frame->flags = 0;
@@ -161,7 +169,10 @@ int main(void)
 			// received frame", so wait until we get there. LEC will hold some error
 			// to report even if multiple pass by.
 		} else {
-			uint32_t can_err = can_get_error_status(channel);
+ 		    FDCAN_ProtocolStatusTypeDef status = {0};
+			FDCAN_ErrorCountersTypeDef counters = {0};
+
+			can_get_error_status(channel, &status, &counters);
 
 			bool was_irq_enabled = disable_irq();
 			frame_object = list_first_entry_or_null(&hGS_CAN.list_frame_pool,
@@ -173,8 +184,13 @@ int main(void)
 				list_del(&frame_object->list);
 				restore_irq(was_irq_enabled);
 
-				frame->timestamp_us = timer_get();
-				if (can_parse_error_status(channel, frame, can_err)) {
+				if (frame->flags & GS_CAN_FLAG_FD) {
+					frame->canfd_ts.timestamp_us = timer_get();
+				} else {
+					frame->classic_can_ts.timestamp_us = timer_get();
+				}
+
+				if (can_parse_error_status(channel, frame, &status, &counters)) {
 					list_add_tail_locked(&frame_object->list, &hGS_CAN.list_to_host);
 				} else {
 					list_add_tail_locked(&frame_object->list, &hGS_CAN.list_frame_pool);

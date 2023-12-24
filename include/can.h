@@ -34,18 +34,24 @@ THE SOFTWARE.
 #include "led.h"
 
 typedef struct {
-	CAN_TypeDef *instance;
+	FDCAN_HandleTypeDef handle;
+	bool fd;
 	led_data_t leds;
-	uint32_t reg_esr_old;
+	FDCAN_ProtocolStatusTypeDef status_old;
 	uint16_t brp;
 	uint8_t phase_seg1;
 	uint8_t phase_seg2;
 	uint8_t sjw;
+	uint16_t dbrp;
+	uint8_t dphase_seg1;
+	uint8_t dphase_seg2;
+	uint8_t dsjw;
 } can_data_t;
 
-void can_init(can_data_t *hcan, CAN_TypeDef *instance);
+void can_init(can_data_t *hcan, FDCAN_GlobalTypeDef *instance);
 bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8_t phase_seg2, uint8_t sjw);
-void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_shot);
+bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8_t phase_seg2, uint8_t sjw);
+void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_shot, bool fd);
 void can_disable(can_data_t *hcan);
 bool can_is_enabled(can_data_t *hcan);
 
@@ -54,14 +60,12 @@ bool can_is_rx_pending(can_data_t *hcan);
 
 bool can_send(can_data_t *hcan, struct gs_host_frame *frame);
 
-/** return CAN->ESR register which contains tx/rx error counters and
- * LEC (last error code).
- */
-uint32_t can_get_error_status(can_data_t *hcan);
+void can_get_error_status(can_data_t *hcan, FDCAN_ProtocolStatusTypeDef *status, FDCAN_ErrorCountersTypeDef *counters);
 
 /** parse status value returned by can_get_error_status().
  * @param frame : will hold the generated error frame
  * @param err : holds the contents of the ESR register
  * @return 1 when status changes (if any) need a new error frame sent
  */
-bool can_parse_error_status(can_data_t *hcan, struct gs_host_frame *frame, uint32_t err);
+bool can_parse_error_status(can_data_t *hcan, struct gs_host_frame *frame,
+                            FDCAN_ProtocolStatusTypeDef *status, FDCAN_ErrorCountersTypeDef *counters);

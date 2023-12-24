@@ -39,14 +39,19 @@ THE SOFTWARE.
 
 /* Define these here so they can be referenced in other files */
 
-#define GS_CAN_EP0_BUF_SIZE \
+#define GS_CAN_EP0_BUF_SIZE 64
+
+/* @todo tymm ?
 	max5(sizeof(struct gs_host_config), \
 		 sizeof(struct gs_device_bittiming), \
 		 sizeof(struct gs_device_mode), \
 		 sizeof(struct gs_identify_mode), \
 		 sizeof(struct gs_device_termination_state))
-#define CAN_DATA_MAX_PACKET_SIZE 32    /* Endpoint IN & OUT Packet size */
-#define USB_CAN_CONFIG_DESC_SIZ	 50
+*/
+
+#define CAN_DATA_MAX_PACKET_SIZE 128    /* Endpoint IN & OUT Packet size */
+#define USB_CAN_CONFIG_DESC_SIZ	50
+
 #define USBD_GS_CAN_VENDOR_CODE	 0x20
 #define DFU_INTERFACE_NUM		 1
 #define DFU_INTERFACE_STR_INDEX	 0xE0
@@ -83,18 +88,8 @@ typedef struct {
 	struct gs_host_frame_object msgbuf[CAN_QUEUE_SIZE];
 } USBD_GS_CAN_HandleTypeDef __attribute__ ((aligned (4)));
 
-#if defined(STM32F0)
-# define USB_INTERFACE USB
-# define USB_INTERRUPT USB_IRQn
-#elif defined(STM32F4)
-# define USB_INTERFACE USB_OTG_FS
-# define USB_INTERRUPT OTG_FS_IRQn
-
-// RX FIFO is defined in words, so divide bytes by 4
-// RX FIFO size chosen according to reference manual RM0368 which suggests
-// using (largest packet size / 4) + 1
-# define USB_RX_FIFO_SIZE ((256U / 4U) + 1U)
-#endif
+#define USB_INTERFACE USB
+#define USB_INTERRUPT USB_LP_IRQn
 
 uint8_t USBD_GS_CAN_Init(USBD_GS_CAN_HandleTypeDef *hcan, USBD_HandleTypeDef *pdev);
 void USBD_GS_CAN_SuspendCallback(USBD_HandleTypeDef  *pdev);

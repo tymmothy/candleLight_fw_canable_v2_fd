@@ -6,6 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(
 	--specs=nano.specs
 	--specs=nosys.specs
+    -mcpu=cortex-m4
 	-O2
 	-Wall
 	-Werror
@@ -15,7 +16,6 @@ add_compile_options(
 	-ffat-lto-objects
 	-ffreestanding
 	-ffunction-sections
-	-flto
 	-fmessage-length=0
 	-fsigned-char
 	-g3
@@ -27,6 +27,7 @@ add_compile_options(
 set(CPUFLAGS_F0 -mcpu=cortex-m0)
 set(CPUFLAGS_F4 -mcpu=cortex-m4)
 set(CPUFLAGS_G0 -mcpu=cortex-m0)
+set(CPUFLAGS_G4 -mcpu=cortex-m4)
 
 add_link_options(
 	--specs=nano.specs
@@ -191,6 +192,15 @@ populate_ldscript(CPU_FAMILY STM32F407XE
 	HEAP_SIZE 1k
 )
 
+populate_ldscript(CPU_FAMILY STM32G431X8
+	FLASH_START 0x08000000
+	FLASH_SIZE 128k
+	RAM_START 0x20000000
+	RAM_SIZE 22k
+	STACK_SIZE 2k
+	HEAP_SIZE 1k
+)
+
 populate_ldscript(CPU_FAMILY STM32G0B1XK
 	FLASH_START 0x08000000
 	FLASH_SIZE 512k
@@ -220,6 +230,15 @@ function(add_f042_target TGTNAME)
 	target_sources(${TGTNAME}_fw PRIVATE "src/device/device_f0.c")
 	target_link_options(${TGTNAME}_fw BEFORE PRIVATE ${CPUFLAGS_F0})
 	target_link_libraries(${TGTNAME}_fw PRIVATE STM32_HAL_STM32F042x6 STM32_USB_Device_Library_STM32F042x6)
+endfunction()
+
+function(add_g431_target TGTNAME)
+	add_target_common(${TGTNAME} STM32G431X8)
+	target_compile_options(${TGTNAME}_fw BEFORE PRIVATE ${CPUFLAGS_G4})
+	target_compile_definitions(${TGTNAME}_fw PRIVATE BOARD_${TGTNAME} STM32G4)
+	target_sources(${TGTNAME}_fw PRIVATE "src/device/device_g4.c")
+	target_link_options(${TGTNAME}_fw BEFORE PRIVATE ${CPUFLAGS_G4})
+	target_link_libraries(${TGTNAME}_fw PRIVATE STM32_HAL_STM32G431x8 STM32_USB_Device_Library_STM32G431x8)
 endfunction()
 
 function(add_f072_target TGTNAME)
@@ -256,11 +275,19 @@ set(TGTF042_LIST "cantact" "canalyze" "canable" "usb2can" "cannette")
 set(TGTF072_LIST "candleLight" "CANable_MKS" "CONVERTDEVICE_xCAN" "DSD_TECH_SH_C30A" "FYSETC_UCAN")
 set(TGTF407_LIST "STM32F4_DevBoard")
 set(TGTG0B1_LIST "budgetcan" "CONVERTDEVICE_xCANFD")
+set(TGTG431_LIST "canable2")
 
 foreach (TGTNAME IN LISTS TGTF042_LIST)
 	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
 	if (BUILD_${TGTNAME})
 		add_f042_target(${TGTNAME})
+	endif()
+endforeach()
+
+foreach (TGTNAME IN LISTS TGTG431_LIST)
+	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
+	if (BUILD_${TGTNAME})
+		add_g431_target(${TGTNAME})
 	endif()
 endforeach()
 
