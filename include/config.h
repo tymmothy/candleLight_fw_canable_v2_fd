@@ -106,10 +106,10 @@ THE SOFTWARE.
 	#define LEDRX_Mode GPIO_MODE_OUTPUT_PP
 	#define LEDRX_Active_High 1
 
-	#define TIM2_CLOCK_SPEED		 170000000
+	#define TIM2_CLOCK_SPEED		 160000000
 
 	#define CAN_INTERFACE            FDCAN1
-    #define CAN_CLOCK_SPEED          170000000
+    #define CAN_CLOCK_SPEED          160000000
     #define NUM_CAN_CHANNEL          1
 
 	#define LEDTX_GPIO_Port GPIOA

@@ -74,7 +74,9 @@ bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, 
 void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_shot, bool fd)
 {
 	uint32_t mode = FDCAN_MODE_NORMAL;
+#if 0
    FDCAN_FilterTypeDef sFilterConfig;
+#endif
 
 	HAL_FDCAN_Stop(&hcan->handle);
 
@@ -87,7 +89,7 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 			mode |= FDCAN_MODE_BUS_MONITORING;
 
 	} else if (loop_back) {
-		mode |= FDCAN_MODE_INTERNAL_LOOPBACK;
+		mode |= FDCAN_MODE_EXTERNAL_LOOPBACK;
 	}
 
 	hcan->handle.Init.Mode = mode;		
@@ -100,13 +102,14 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 	hcan->handle.Init.NominalSyncJumpWidth = hcan->sjw;
 
    hcan->handle.Init.DataPrescaler = hcan->dbrp;
-   hcan->handle.Init.DataSyncJumpWidth = hcan->dbrp;
-   hcan->handle.Init.DataTimeSeg1 = hcan->dbrp;
-   hcan->handle.Init.DataTimeSeg2 = hcan->dbrp;
+   hcan->handle.Init.DataTimeSeg1 = hcan->dphase_seg1;
+   hcan->handle.Init.DataTimeSeg2 = hcan->dphase_seg2;
+   hcan->handle.Init.DataSyncJumpWidth = hcan->dsjw;
 
 	HAL_FDCAN_Init(&hcan->handle);
 
-   /* Configure reception filter to Rx FIFO 0 on both FDCAN instances */
+#if 0
+   /* Configure reception filter to Rx FIFO 0 */
    sFilterConfig.IdType = FDCAN_STANDARD_ID;
    sFilterConfig.FilterIndex = 0;
    sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
@@ -122,6 +125,7 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
    HAL_FDCAN_ConfigGlobalFilter(&hcan->handle, FDCAN_ACCEPT_IN_RX_FIFO0,
                                 FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE,
                                 FDCAN_FILTER_REMOTE);
+#endif
 
    HAL_FDCAN_Start(&hcan->handle);
 
@@ -186,14 +190,12 @@ bool can_receive(can_data_t *hcan, struct gs_host_frame *rx_frame)
 			rx_frame->can_id |= CAN_RTR_FLAG;
 		}
 
-		if ((header.FDFormat == FDCAN_FRAME_FD_BRS) ||
-          (header.FDFormat == FDCAN_FRAME_FD_NO_BRS)) {
+		if (header.FDFormat == FDCAN_FD_CAN) {
 			rx_frame->flags |= GS_CAN_FLAG_FD;
 
-
-		   if (header.FDFormat == FDCAN_FRAME_FD_BRS) {
+			if (header.BitRateSwitch == FDCAN_BRS_ON) {
 		   	rx_frame->flags |= GS_CAN_FLAG_BRS;
-		   }
+			}
 
 		   if (header.ErrorStateIndicator == FDCAN_ESI_ACTIVE) {
 		   	rx_frame->flags |= GS_CAN_FLAG_ESI;
@@ -231,19 +233,24 @@ bool can_send(can_data_t *hcan, struct gs_host_frame *frame)
    	frame_header.Identifier = frame->can_id & 0x7FF;
 	}
 
-	if (frame->flags & GS_CAN_FLAG_FD) {
-		frame_header.FDFormat = FDCAN_FD_CAN;
-		if (frame->flags & GS_CAN_FLAG_BRS) {
-			frame_header.BitRateSwitch = FDCAN_BRS_ON;
-		}
-	}
-
 	if (frame->can_id & CAN_RTR_FLAG) {
 		frame_header.TxFrameType = FDCAN_REMOTE_FRAME;
 	}
+
+	if (frame->flags & GS_CAN_FLAG_FD) {
+		frame_header.FDFormat = FDCAN_FD_CAN;
+
+		//if (frame->flags & GS_CAN_FLAG_BRS) {
+			frame_header.BitRateSwitch = FDCAN_BRS_ON;
+		//}
+
+		if (frame->flags & GS_CAN_FLAG_ESI) {
+			frame_header.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		}
+	}
  
    // Convert to HAL code
-   frame_header.DataLength = frame->can_dlc << 16;
+   frame_header.DataLength = (frame->can_dlc & 0x0f) << 16;
 
    // Transmit can frame
    HAL_StatusTypeDef status;
