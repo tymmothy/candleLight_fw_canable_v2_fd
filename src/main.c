@@ -184,7 +184,7 @@ int main(void)
 				list_del(&frame_object->list);
 				restore_irq(was_irq_enabled);
 
-				frame->classic_can.ts.timestamp_us = timer_get();
+				frame->classic_can_ts.timestamp_us = timer_get();
 
 				if (can_parse_error_status(channel, frame, &status, &counters)) {
 					list_add_tail_locked(&frame_object->list, &hGS_CAN.list_to_host);
