@@ -777,8 +777,6 @@ static uint8_t USBD_GS_CAN_Transmit(USBD_HandleTypeDef *pdev, uint8_t *buf, uint
 
 uint8_t USBD_GS_CAN_SendFrame(USBD_HandleTypeDef *pdev, struct gs_host_frame *frame)
 {
-	uint8_t data[128] = {0};
-
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
 	size_t len;
 
@@ -792,7 +790,13 @@ uint8_t USBD_GS_CAN_SendFrame(USBD_HandleTypeDef *pdev, struct gs_host_frame *fr
 		len -= 4;
 	}
 
-	memcpy(data, frame, len);
+	memcpy(hcan->to_host_buf, frame, len);
+
+#if 0
+	if (frame->can_dlc == 0xf) {
+		__asm__ __volatile__("BKPT 0\r\n");
+	}
+#endif
 
 	if (hcan->pad_pkts_to_max_pkt_size) {
 		// When talking to WinUSB it seems to help a lot if the
@@ -800,11 +804,12 @@ uint8_t USBD_GS_CAN_SendFrame(USBD_HandleTypeDef *pdev, struct gs_host_frame *fr
 		// In this mode, fill packets out to max packet size and
 		// then send.
 		//memset(((uint8_t *)frame) + len, 0, sizeof(*frame) - len);
-		len = sizeof(data);
+		memset(hcan->to_host_buf + len, 0, sizeof(hcan->to_host_buf) - len);
+		len = sizeof(hcan->to_host_buf);
 	}
 
 	bool was_irq_enabled = disable_irq();
-	uint8_t result = USBD_GS_CAN_Transmit(pdev, data, len);
+	uint8_t result = USBD_GS_CAN_Transmit(pdev, hcan->to_host_buf, len);
 	restore_irq(was_irq_enabled);
 	return result;
 }

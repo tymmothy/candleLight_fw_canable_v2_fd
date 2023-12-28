@@ -50,6 +50,7 @@ THE SOFTWARE.
 */
 
 #define CAN_DATA_MAX_PACKET_SIZE 64    /* Endpoint IN & OUT Packet size */
+#define CAN_DATA_MAX_XFER_SIZE 128     /* Max size of a full data transfer */
 #define USB_CAN_CONFIG_DESC_SIZ	50
 
 #define USBD_GS_CAN_VENDOR_CODE	 0x20
@@ -75,6 +76,7 @@ typedef struct {
 	struct list_head list_to_host;
 
 	struct gs_host_frame_object *from_host_buf;
+	uint8_t to_host_buf[CAN_DATA_MAX_XFER_SIZE];
 
 	can_data_t channels[NUM_CAN_CHANNEL];
 

@@ -155,15 +155,12 @@ bool can_is_rx_pending(can_data_t *hcan)
 	return HAL_FDCAN_GetRxFifoFillLevel(&hcan->handle, FDCAN_RX_FIFO0) > 0;
 }
 
-uint8_t const dlc_to_len[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 };
-
 bool can_receive(can_data_t *hcan, struct gs_host_frame *rx_frame)
 {
 	if (can_is_enabled(hcan) && can_is_rx_pending(hcan)) {
 	   FDCAN_RxHeaderTypeDef header;
-	   uint8_t data[sizeof(struct canfd)];
+	   uint8_t data[sizeof(struct canfd)] = {0};
 	   HAL_StatusTypeDef status;
-	   uint8_t data_len;
 
 	   status = HAL_FDCAN_GetRxMessage(&hcan->handle, FDCAN_RX_FIFO0, &header, data);
 	   (void)status;
@@ -190,10 +187,8 @@ bool can_receive(can_data_t *hcan, struct gs_host_frame *rx_frame)
 		   }
 		}
 
-		rx_frame->can_dlc = (header.DataLength >> 16) & 0xf;
-		data_len = dlc_to_len[rx_frame->can_dlc];
-
-		memcpy(rx_frame->raw_data, data, data_len);
+      rx_frame->can_dlc = (header.DataLength >> 16) & 0xf;
+		memcpy(rx_frame->raw_data, data, sizeof(data));
 
 		return true;
 	} else {
