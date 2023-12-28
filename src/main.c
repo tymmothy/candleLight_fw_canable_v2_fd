@@ -149,10 +149,10 @@ int main(void)
 						frame->canfd_ts.timestamp_us = timer_get();
 					} else {
 						frame->classic_can_ts.timestamp_us = timer_get();
+						frame->flags = 0;
 					}
 					frame->echo_id = 0xFFFFFFFF; // not a echo frame
 					frame->channel = 0;
-					frame->flags = 0;
 					frame->reserved = 0;
 
 					list_add_tail_locked(&frame_object->list, &hGS_CAN.list_to_host);
@@ -184,11 +184,7 @@ int main(void)
 				list_del(&frame_object->list);
 				restore_irq(was_irq_enabled);
 
-				if (frame->flags & GS_CAN_FLAG_FD) {
-					frame->canfd_ts.timestamp_us = timer_get();
-				} else {
-					frame->classic_can_ts.timestamp_us = timer_get();
-				}
+				frame->classic_can.ts.timestamp_us = timer_get();
 
 				if (can_parse_error_status(channel, frame, &status, &counters)) {
 					list_add_tail_locked(&frame_object->list, &hGS_CAN.list_to_host);

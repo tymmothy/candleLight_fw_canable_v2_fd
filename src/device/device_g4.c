@@ -61,6 +61,11 @@ void device_can_init(can_data_t *hcan, FDCAN_GlobalTypeDef *instance) {
 	hcan->phase_seg1 = 12;
 	hcan->phase_seg2 = 1;
 
+	hcan->dbrp        = 6;
+	hcan->dsjw        = 1;
+	hcan->dphase_seg1 = 12;
+	hcan->dphase_seg2 = 1;
+
 	memset(&hcan->handle, 0, sizeof(hcan->handle));
 	hcan->handle.Instance = instance;
 	hcan->handle.Init.ClockDivider = FDCAN_CLOCK_DIV1;

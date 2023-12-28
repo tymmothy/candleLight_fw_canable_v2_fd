@@ -49,7 +49,7 @@ THE SOFTWARE.
 		 sizeof(struct gs_device_termination_state))
 */
 
-#define CAN_DATA_MAX_PACKET_SIZE 128    /* Endpoint IN & OUT Packet size */
+#define CAN_DATA_MAX_PACKET_SIZE 64    /* Endpoint IN & OUT Packet size */
 #define USB_CAN_CONFIG_DESC_SIZ	50
 
 #define USBD_GS_CAN_VENDOR_CODE	 0x20
@@ -82,6 +82,8 @@ typedef struct {
 
 	bool timestamps_enabled;
 	uint32_t sof_timestamp_us;
+
+	bool fd;
 
 	bool pad_pkts_to_max_pkt_size;
 

@@ -6,7 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(
 	--specs=nano.specs
 	--specs=nosys.specs
-    -mcpu=cortex-m4
+	-mcpu=cortex-m4
 	-O2
 	-Wall
 	-Werror

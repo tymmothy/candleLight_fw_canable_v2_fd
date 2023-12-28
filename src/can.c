@@ -48,6 +48,7 @@ bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8
 		hcan->phase_seg1 = phase_seg1;
 		hcan->phase_seg2 = phase_seg2;
 		hcan->sjw = sjw;
+
 		return true;
 	} else {
 		return false;
@@ -65,6 +66,7 @@ bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, 
 		hcan->dphase_seg1 = phase_seg1;
 		hcan->dphase_seg2 = phase_seg2;
 		hcan->dsjw = sjw;
+
 		return true;
 	} else {
 		return false;
@@ -74,9 +76,6 @@ bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, 
 void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_shot, bool fd)
 {
 	uint32_t mode = FDCAN_MODE_NORMAL;
-#if 0
-   FDCAN_FilterTypeDef sFilterConfig;
-#endif
 
 	HAL_FDCAN_Stop(&hcan->handle);
 
@@ -92,7 +91,11 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 		mode |= FDCAN_MODE_EXTERNAL_LOOPBACK;
 	}
 
-	hcan->handle.Init.Mode = mode;		
+	hcan->handle.Init.Mode = mode;
+
+	/* Sorting out heuristics for FDCAN_FRAME_FD_BRS / FDCAN_FRAME_FD_NO_BRS is too hard;
+	 * just always enable bitrate switching for FDCAN
+	 */
 	hcan->handle.Init.FrameFormat = fd ? FDCAN_FRAME_FD_BRS : FDCAN_FRAME_CLASSIC;
 	hcan->handle.Init.AutoRetransmission = one_shot ? DISABLE : ENABLE;
 
@@ -108,24 +111,9 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 
 	HAL_FDCAN_Init(&hcan->handle);
 
-#if 0
-   /* Configure reception filter to Rx FIFO 0 */
-   sFilterConfig.IdType = FDCAN_STANDARD_ID;
-   sFilterConfig.FilterIndex = 0;
-   sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
-   sFilterConfig.FilterConfig = FDCAN_FILTER_DISABLE;
-   sFilterConfig.FilterID1 = 0x000;
-   sFilterConfig.FilterID2 = 0x7FF;
-
-   HAL_FDCAN_ConfigFilter(&hcan->handle, &sFilterConfig);
-
-   /* Configure global filter on both FDCAN instances:
-      Filter all remote frames with STD and EXT ID
-      Reject non matching frames with STD ID and EXT ID */
-   HAL_FDCAN_ConfigGlobalFilter(&hcan->handle, FDCAN_ACCEPT_IN_RX_FIFO0,
-                                FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE,
-                                FDCAN_FILTER_REMOTE);
-#endif
+	/* Could try to calculate delay comp... */
+	HAL_FDCAN_ConfigTxDelayCompensation(&hcan->handle, 5, 0);
+	HAL_FDCAN_EnableTxDelayCompensation(&hcan->handle);
 
    HAL_FDCAN_Start(&hcan->handle);
 
@@ -173,7 +161,7 @@ bool can_receive(can_data_t *hcan, struct gs_host_frame *rx_frame)
 {
 	if (can_is_enabled(hcan) && can_is_rx_pending(hcan)) {
 	   FDCAN_RxHeaderTypeDef header;
-	   uint8_t data[64];
+	   uint8_t data[sizeof(struct canfd)];
 	   HAL_StatusTypeDef status;
 	   uint8_t data_len;
 
@@ -287,6 +275,7 @@ bool can_parse_error_status(can_data_t *hcan, struct gs_host_frame *frame, FDCAN
 
 	hcan->status_old = *status;
 
+	frame->flags = 0;
 	frame->echo_id = 0xFFFFFFFF;
 	frame->can_id  = CAN_ERR_FLAG;
 	frame->can_dlc = CAN_ERR_DLC;

@@ -227,7 +227,7 @@ static const struct gs_device_bt_const USBD_GS_CAN_btconst = {
 		| GS_CAN_FEATURE_TERMINATION
 #endif
 	,
-	.fclk_can = CAN_CLOCK_SPEED, // can timing base clock FIXME this isn't right
+	.fclk_can = CAN_CLOCK_SPEED,
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -252,7 +252,7 @@ static struct gs_device_bt_const_extended USBD_GS_CAN_btconst_extended = {
 		| GS_CAN_FEATURE_TERMINATION
 #endif
 	,
-	.fclk_can = CAN_CLOCK_SPEED, // can timing base clock
+	.fclk_can = CAN_CLOCK_SPEED,
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -284,9 +284,9 @@ static struct gs_device_bt_const_extended USBD_GS_CAN_btconst_extended = {
 static inline uint8_t USBD_GS_CAN_PrepareReceive(USBD_HandleTypeDef *pdev)
 {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	struct gs_host_frame *frame = &hcan->from_host_buf->frame;
+	uint8_t *data = (uint8_t *)&hcan->from_host_buf->frame;
 
-	return USBD_LL_PrepareReceive(pdev, GSUSB_ENDPOINT_OUT, (uint8_t *)frame, sizeof(*frame));
+	return USBD_LL_PrepareReceive(pdev, GSUSB_ENDPOINT_OUT, data, sizeof(struct gs_host_frame));
 }
 
 static uint8_t USBD_GS_CAN_Start(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
@@ -576,6 +576,7 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 				led_set_mode(&channel->leds, led_mode_off);
 			} else if (mode->mode == GS_CAN_MODE_START) {
 				hcan->timestamps_enabled = (mode->flags & GS_CAN_MODE_HW_TIMESTAMP) != 0;
+				hcan->fd = (mode->flags & GS_CAN_MODE_FD) != 0;
 				hcan->pad_pkts_to_max_pkt_size = (mode->flags & GS_CAN_MODE_PAD_PKTS_TO_MAX_PKT_SIZE) != 0;
 
 				can_enable(channel,
@@ -632,16 +633,8 @@ static uint8_t USBD_GS_CAN_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 // Note that the return value is completely ignored by the stack.
 static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	uint32_t const min_len = sizeof(struct gs_host_frame) - (sizeof(struct canfd_ts) - sizeof(struct classic_can));
 
-	uint32_t rxlen = USBD_LL_GetRxDataSize(pdev, epnum);
-	if (rxlen < min_len) {
-		// Invalid frame length, just ignore it and receive into the same buffer
-		// again next time.
-		USBD_GS_CAN_PrepareReceive(pdev);
-		return USBD_OK;
-	}
-
+	(void)epnum;
 	bool was_irq_enabled = disable_irq();
 	// Enqueue the frame we just received.
 	list_add_tail(&hcan->from_host_buf->list, &hcan->list_from_host);
@@ -784,38 +777,34 @@ static uint8_t USBD_GS_CAN_Transmit(USBD_HandleTypeDef *pdev, uint8_t *buf, uint
 
 uint8_t USBD_GS_CAN_SendFrame(USBD_HandleTypeDef *pdev, struct gs_host_frame *frame)
 {
-	uint8_t buf[CAN_DATA_MAX_PACKET_SIZE],*send_addr;
+	uint8_t data[128] = {0};
 
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
 	size_t len;
 
-	if (frame->flags & GS_CAN_FLAG_FD) {
-		len = sizeof(struct gs_host_frame);
-	} else {
-		len = sizeof(struct gs_host_frame) - (sizeof(struct canfd) - sizeof(struct classic_can));
+	len = sizeof(struct gs_host_frame);
+
+	if (!hcan->fd) {
+		len -= 56;
 	}
 
 	if (!hcan->timestamps_enabled) {
 		len -= 4;
 	}
 
-	send_addr = (uint8_t *)frame;
+	memcpy(data, frame, len);
 
 	if (hcan->pad_pkts_to_max_pkt_size) {
 		// When talking to WinUSB it seems to help a lot if the
 		// size of packet you send equals the max packet size.
 		// In this mode, fill packets out to max packet size and
 		// then send.
-		memcpy(buf, frame, len);
-
-		// zero rest of buffer
-		memset(buf + len, 0, sizeof(buf) - len);
-		send_addr = buf;
-		len = sizeof(buf);
+		//memset(((uint8_t *)frame) + len, 0, sizeof(*frame) - len);
+		len = sizeof(data);
 	}
 
 	bool was_irq_enabled = disable_irq();
-	uint8_t result = USBD_GS_CAN_Transmit(pdev, send_addr, len);
+	uint8_t result = USBD_GS_CAN_Transmit(pdev, data, len);
 	restore_irq(was_irq_enabled);
 	return result;
 }
