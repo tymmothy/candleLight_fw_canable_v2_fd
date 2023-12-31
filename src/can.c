@@ -111,8 +111,6 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 
 	HAL_FDCAN_Init(&hcan->handle);
 
-	/* Could try to calculate delay comp... */
-	HAL_FDCAN_ConfigTxDelayCompensation(&hcan->handle, 5, 0);
 	HAL_FDCAN_EnableTxDelayCompensation(&hcan->handle);
 
    HAL_FDCAN_Start(&hcan->handle);
