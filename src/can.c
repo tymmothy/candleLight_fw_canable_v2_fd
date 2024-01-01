@@ -104,20 +104,20 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 	hcan->handle.Init.NominalTimeSeg2 = hcan->phase_seg2;
 	hcan->handle.Init.NominalSyncJumpWidth = hcan->sjw;
 
-   hcan->handle.Init.DataPrescaler = hcan->dbrp;
-   hcan->handle.Init.DataTimeSeg1 = hcan->dphase_seg1;
-   hcan->handle.Init.DataTimeSeg2 = hcan->dphase_seg2;
-   hcan->handle.Init.DataSyncJumpWidth = hcan->dsjw;
+	hcan->handle.Init.DataPrescaler = hcan->dbrp;
+	hcan->handle.Init.DataTimeSeg1 = hcan->dphase_seg1;
+	hcan->handle.Init.DataTimeSeg2 = hcan->dphase_seg2;
+	hcan->handle.Init.DataSyncJumpWidth = hcan->dsjw;
 
 	HAL_FDCAN_Init(&hcan->handle);
 
 	HAL_FDCAN_EnableTxDelayCompensation(&hcan->handle);
 
-   HAL_FDCAN_Start(&hcan->handle);
+	HAL_FDCAN_Start(&hcan->handle);
 
-   HAL_FDCAN_ActivateNotification(&hcan->handle, FDCAN_IT_RX_FIFO0_NEW_MESSAGE
-                                  | FDCAN_IT_LIST_BIT_LINE_ERROR
-                                  | FDCAN_IT_LIST_PROTOCOL_ERROR, 0);
+	HAL_FDCAN_ActivateNotification(&hcan->handle, FDCAN_IT_RX_FIFO0_NEW_MESSAGE
+								  | FDCAN_IT_LIST_BIT_LINE_ERROR
+								  | FDCAN_IT_LIST_PROTOCOL_ERROR, 0);
 
 #ifdef nCANSTBY_Pin
 	HAL_GPIO_WritePin(nCANSTBY_Port, nCANSTBY_Pin, !GPIO_INIT_STATE(nCANSTBY_Active_High));
@@ -130,10 +130,10 @@ void can_disable(can_data_t *hcan)
 	HAL_GPIO_WritePin(nCANSTBY_Port, nCANSTBY_Pin, GPIO_INIT_STATE(nCANSTBY_Active_High));
 #endif
 
-   HAL_FDCAN_Stop(&hcan->handle);
-   HAL_FDCAN_DeactivateNotification(&hcan->handle, FDCAN_IT_RX_FIFO0_NEW_MESSAGE
-                                    | FDCAN_IT_LIST_BIT_LINE_ERROR
-                                    | FDCAN_IT_LIST_PROTOCOL_ERROR);
+	HAL_FDCAN_Stop(&hcan->handle);
+	HAL_FDCAN_DeactivateNotification(&hcan->handle, FDCAN_IT_RX_FIFO0_NEW_MESSAGE
+									| FDCAN_IT_LIST_BIT_LINE_ERROR
+									| FDCAN_IT_LIST_PROTOCOL_ERROR);
 }
 
 bool can_is_enabled(can_data_t *hcan)
@@ -156,12 +156,12 @@ bool can_is_rx_pending(can_data_t *hcan)
 bool can_receive(can_data_t *hcan, struct gs_host_frame *rx_frame)
 {
 	if (can_is_enabled(hcan) && can_is_rx_pending(hcan)) {
-	   FDCAN_RxHeaderTypeDef header;
-	   uint8_t data[sizeof(struct canfd)] = {0};
-	   HAL_StatusTypeDef status;
+		FDCAN_RxHeaderTypeDef header;
+		uint8_t data[sizeof(struct canfd)] = {0};
+		HAL_StatusTypeDef status;
 
-	   status = HAL_FDCAN_GetRxMessage(&hcan->handle, FDCAN_RX_FIFO0, &header, data);
-	   (void)status;
+		status = HAL_FDCAN_GetRxMessage(&hcan->handle, FDCAN_RX_FIFO0, &header, data);
+		(void)status;
 
 		if (header.IdType == FDCAN_EXTENDED_ID) {
 			rx_frame->can_id = CAN_EFF_FLAG | (header.Identifier & 0x1FFFFFFF);
@@ -177,15 +177,15 @@ bool can_receive(can_data_t *hcan, struct gs_host_frame *rx_frame)
 			rx_frame->flags |= GS_CAN_FLAG_FD;
 
 			if (header.BitRateSwitch == FDCAN_BRS_ON) {
-		   	rx_frame->flags |= GS_CAN_FLAG_BRS;
+				rx_frame->flags |= GS_CAN_FLAG_BRS;
 			}
 
-		   if (header.ErrorStateIndicator == FDCAN_ESI_ACTIVE) {
-		   	rx_frame->flags |= GS_CAN_FLAG_ESI;
-		   }
+			if (header.ErrorStateIndicator == FDCAN_ESI_ACTIVE) {
+				rx_frame->flags |= GS_CAN_FLAG_ESI;
+			}
 		}
 
-      rx_frame->can_dlc = (header.DataLength >> 16) & 0xf;
+	  rx_frame->can_dlc = (header.DataLength >> 16) & 0xf;
 		memcpy(rx_frame->raw_data, data, sizeof(data));
 
 		return true;
@@ -201,9 +201,9 @@ bool can_send(can_data_t *hcan, struct gs_host_frame *frame)
 		.FDFormat = FDCAN_CLASSIC_CAN, // default to classic frame
 		.IdType = FDCAN_STANDARD_ID, // default to standard ID
 		.BitRateSwitch = FDCAN_BRS_OFF, // no bitrate switch
-      .ErrorStateIndicator = FDCAN_ESI_ACTIVE, // error active
-      .TxEventFifoControl = FDCAN_NO_TX_EVENTS, // don't record tx events
-      .MessageMarker = 0, // ?
+	  .ErrorStateIndicator = FDCAN_ESI_ACTIVE, // error active
+	  .TxEventFifoControl = FDCAN_NO_TX_EVENTS, // don't record tx events
+	  .MessageMarker = 0, // ?
 	};
 
 	if (frame->can_id & CAN_EFF_FLAG) {
@@ -229,19 +229,19 @@ bool can_send(can_data_t *hcan, struct gs_host_frame *frame)
 			frame_header.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
 		}
 	}
- 
-   // Convert to HAL code
-   frame_header.DataLength = (frame->can_dlc & 0x0f) << 16;
 
-   // Transmit can frame
-   HAL_StatusTypeDef status;
-   status = HAL_FDCAN_AddMessageToTxFifoQ(&hcan->handle, &frame_header, frame->raw_data);
+	// Convert to HAL code
+	frame_header.DataLength = (frame->can_dlc & 0x0f) << 16;
 
-   if (status == HAL_OK) {
-    	return true;
-   } else {
-    	return false;
-   }
+	// Transmit can frame
+	HAL_StatusTypeDef status;
+	status = HAL_FDCAN_AddMessageToTxFifoQ(&hcan->handle, &frame_header, frame->raw_data);
+
+	if (status == HAL_OK) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
 void can_get_error_status(can_data_t *hcan, FDCAN_ProtocolStatusTypeDef *status, FDCAN_ErrorCountersTypeDef *counters)
