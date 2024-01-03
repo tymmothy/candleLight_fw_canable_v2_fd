@@ -271,8 +271,7 @@ endfunction()
 
 ########## generate list of targets.
 # the "_fw" part is appended automatically
-set(TGTG431_LIST "canable2")
-set(TGTG431_LIST "CANable_MKS2_Pro")
+set(TGTG431_LIST "canable2" "CANable_MKS2_Pro")
 
 foreach (TGTNAME IN LISTS TGTF042_LIST)
 	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
