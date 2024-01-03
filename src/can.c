@@ -37,16 +37,16 @@ void can_init(can_data_t *hcan, FDCAN_GlobalTypeDef *instance)
 	device_can_init(hcan, instance);
 }
 
-bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8_t phase_seg2, uint8_t sjw)
+bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t tseg1, uint8_t tseg2, uint8_t sjw)
 {
 	if (  (brp>0) && (brp<=1024)
-	   && (phase_seg1>0) && (phase_seg1<=16)
-	   && (phase_seg2>0) && (phase_seg2<=8)
+	   && (tseg1>0) && (tseg1<=16)
+	   && (tseg2>0) && (tseg2<=8)
 	   && (sjw>0) && (sjw<=4)
 		  ) {
 		hcan->brp = brp & 0x3FF;
-		hcan->phase_seg1 = phase_seg1;
-		hcan->phase_seg2 = phase_seg2;
+		hcan->tseg1 = tseg1;
+		hcan->tseg2 = tseg2;
 		hcan->sjw = sjw;
 
 		return true;
@@ -55,16 +55,16 @@ bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8
 	}
 }
 
-bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8_t phase_seg2, uint8_t sjw)
+bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t tseg1, uint8_t tseg2, uint8_t sjw)
 {
 	if (  (brp>0) && (brp<=1024)
-	   && (phase_seg1>0) && (phase_seg1<=16)
-	   && (phase_seg2>0) && (phase_seg2<=8)
+	   && (tseg1>0) && (tseg1<=16)
+	   && (tseg2>0) && (tseg2<=8)
 	   && (sjw>0) && (sjw<=4)
 		  ) {
 		hcan->dbrp = brp & 0x3FF;
-		hcan->dphase_seg1 = phase_seg1;
-		hcan->dphase_seg2 = phase_seg2;
+		hcan->dtseg1 = tseg1;
+		hcan->dtseg2 = tseg2;
 		hcan->dsjw = sjw;
 
 		return true;
@@ -73,9 +73,34 @@ bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, 
 	}
 }
 
+static uint8_t calculate_tdco(can_data_t *hcan) {
+	// Bit time is # clocks for segments plus sync
+	uint32_t dbt = hcan->dtseg1 + hcan->dtseg2 + 1;
+
+	// Bit rate is clock speed divided by bit time * prescaler
+	uint32_t dbr = CAN_CLOCK_SPEED / (hcan->dbrp * dbt);
+
+	// Sample point ratio (scaled by 1000)
+	uint32_t dssp = 1000 * (dbt - hcan->dtseg2) / dbt;
+
+	// TDCO value
+	uint32_t tdco = CAN_CLOCK_SPEED / 1000 * dssp / dbr;
+
+	return (tdco > 127) ? 127 : tdco;
+}
+
+static uint32_t calculate_bitrate(can_data_t *hcan) {
+	// Bit time is # clocks for segments plus sync
+	uint32_t dbt = hcan->dtseg1 + hcan->dtseg2 + 1;
+
+	// Bit rate is clock speed divided by bit time * prescaler
+	return CAN_CLOCK_SPEED / (hcan->dbrp * dbt);
+}
+
 void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_shot, bool fd)
 {
 	uint32_t mode = FDCAN_MODE_NORMAL;
+	uint8_t tdco;
 
 	HAL_FDCAN_Stop(&hcan->handle);
 
@@ -85,7 +110,7 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 		mode |= FDCAN_MODE_INTERNAL_LOOPBACK;
 
 	} else if (listen_only) {
-			mode |= FDCAN_MODE_BUS_MONITORING;
+		mode |= FDCAN_MODE_BUS_MONITORING;
 
 	} else if (loop_back) {
 		mode |= FDCAN_MODE_EXTERNAL_LOOPBACK;
@@ -100,18 +125,25 @@ void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_sho
 	hcan->handle.Init.AutoRetransmission = one_shot ? DISABLE : ENABLE;
 
 	hcan->handle.Init.NominalPrescaler = hcan->brp;
-	hcan->handle.Init.NominalTimeSeg1 = hcan->phase_seg1;
-	hcan->handle.Init.NominalTimeSeg2 = hcan->phase_seg2;
+	hcan->handle.Init.NominalTimeSeg1 = hcan->tseg1;
+	hcan->handle.Init.NominalTimeSeg2 = hcan->tseg2;
 	hcan->handle.Init.NominalSyncJumpWidth = hcan->sjw;
 
 	hcan->handle.Init.DataPrescaler = hcan->dbrp;
-	hcan->handle.Init.DataTimeSeg1 = hcan->dphase_seg1;
-	hcan->handle.Init.DataTimeSeg2 = hcan->dphase_seg2;
+	hcan->handle.Init.DataTimeSeg1 = hcan->dtseg1;
+	hcan->handle.Init.DataTimeSeg2 = hcan->dtseg2;
 	hcan->handle.Init.DataSyncJumpWidth = hcan->dsjw;
 
 	HAL_FDCAN_Init(&hcan->handle);
 
-	HAL_FDCAN_EnableTxDelayCompensation(&hcan->handle);
+	if (calculate_bitrate(hcan) > 2500000) {
+		HAL_FDCAN_EnableTxDelayCompensation(&hcan->handle);
+
+		tdco = calculate_tdco(hcan);
+		HAL_FDCAN_ConfigTxDelayCompensation(&hcan->handle, tdco, 0);
+	} else {
+		HAL_FDCAN_DisableTxDelayCompensation(&hcan->handle);
+	}
 
 	HAL_FDCAN_Start(&hcan->handle);
 
@@ -246,7 +278,6 @@ bool can_send(can_data_t *hcan, struct gs_host_frame *frame)
 
 void can_get_error_status(can_data_t *hcan, FDCAN_ProtocolStatusTypeDef *status, FDCAN_ErrorCountersTypeDef *counters)
 {
-
 	HAL_FDCAN_GetProtocolStatus(&hcan->handle, status);
 	HAL_FDCAN_GetErrorCounters(&hcan->handle, counters);
 }

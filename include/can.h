@@ -39,18 +39,18 @@ typedef struct {
 	led_data_t leds;
 	FDCAN_ProtocolStatusTypeDef status_old;
 	uint16_t brp;
-	uint8_t phase_seg1;
-	uint8_t phase_seg2;
+	uint8_t tseg1;
+	uint8_t tseg2;
 	uint8_t sjw;
 	uint16_t dbrp;
-	uint8_t dphase_seg1;
-	uint8_t dphase_seg2;
+	uint8_t dtseg1;
+	uint8_t dtseg2;
 	uint8_t dsjw;
 } can_data_t;
 
 void can_init(can_data_t *hcan, FDCAN_GlobalTypeDef *instance);
-bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8_t phase_seg2, uint8_t sjw);
-bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t phase_seg1, uint8_t phase_seg2, uint8_t sjw);
+bool can_set_bittiming(can_data_t *hcan, uint16_t brp, uint8_t tseg1, uint8_t tseg2, uint8_t sjw);
+bool can_set_data_bittiming(can_data_t *hcan, uint16_t brp, uint8_t tseg1, uint8_t tseg2, uint8_t sjw);
 void can_enable(can_data_t *hcan, bool loop_back, bool listen_only, bool one_shot, bool fd);
 void can_disable(can_data_t *hcan);
 bool can_is_enabled(can_data_t *hcan);

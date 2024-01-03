@@ -56,15 +56,15 @@ void device_can_init(can_data_t *hcan, FDCAN_GlobalTypeDef *instance) {
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	hcan->fd = false;
-	hcan->brp		= 6;
-	hcan->sjw		= 1;
-	hcan->phase_seg1 = 12;
-	hcan->phase_seg2 = 1;
+	hcan->brp	= 6;
+	hcan->sjw	= 1;
+	hcan->tseg1 = 12;
+	hcan->tseg2 = 1;
 
-	hcan->dbrp		= 6;
-	hcan->dsjw		= 1;
-	hcan->dphase_seg1 = 12;
-	hcan->dphase_seg2 = 1;
+	hcan->dbrp	= 6;
+	hcan->dsjw	= 1;
+	hcan->dtseg1 = 12;
+	hcan->dtseg2 = 1;
 
 	memset(&hcan->handle, 0, sizeof(hcan->handle));
 	hcan->handle.Instance = instance;

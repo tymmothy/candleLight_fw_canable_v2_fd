@@ -43,11 +43,11 @@ void device_can_init(can_data_t *hcan, CAN_TypeDef *instance) {
 	itd.Alternate = GPIO_AF4_CAN;
 	HAL_GPIO_Init(GPIOB, &itd);
 
-	hcan->instance   = instance;
-	hcan->brp        = 6;
-	hcan->sjw        = 1;
-	hcan->phase_seg1 = 13;
-	hcan->phase_seg2 = 2;
+	hcan->instance = instance;
+	hcan->brp   = 6;
+	hcan->sjw   = 1;
+	hcan->tseg1 = 13;
+	hcan->tseg2 = 2;
 	return;
 }
 
