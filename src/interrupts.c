@@ -321,7 +321,7 @@ const pFunc InterruptVectorTable[] = {
 	0,
 	0,
 	0,
-	0,
+	USB_Handler,
 	0,
 	0,
 	0,
